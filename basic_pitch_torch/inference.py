@@ -296,7 +296,9 @@ def predict(
         The model output, midi data and note events from a single prediction
     """
     model = BasicPitchTorch()
-    model.load_state_dict(torch.load(str(model_path)))
+    model.load_state_dict(
+        torch.load(str(model_path), weights_only=True)
+    )
     model.eval() 
     if torch.cuda.is_available():
         model.cuda()
@@ -356,7 +358,9 @@ def load_basic_pitch_model(
         The loaded model.
     """
     model = BasicPitchTorch()
-    model.load_state_dict(torch.load(str(model_path)))
+    model.load_state_dict(
+        torch.load(str(model_path), weights_only=True)
+    )
     model.eval()
     return model
 
