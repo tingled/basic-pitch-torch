@@ -1,0 +1,21 @@
+[tool.poetry]
+name = "basic-pitch-torch"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+torch = "^2.4.1"
+librosa = "^0.10.0"
+numpy = "^2.0.0"
+nnAudio = "^0.3.3"
+scipy = "^1.11.3"
+pretty_midi = "^0.2.10"
+llvmlite = "0.43.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
