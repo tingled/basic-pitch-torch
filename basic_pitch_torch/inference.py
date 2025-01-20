@@ -147,7 +147,7 @@ def run_inference(
     hop_size = AUDIO_N_SAMPLES - overlap_len
 
     audio_windowed, _, audio_original_length = get_audio_input(audio_path, overlap_len, hop_size)
-    audio_windowed = torch.from_numpy(audio_windowed).T
+    audio_windowed = torch.tensor(audio_windowed).T
     if torch.cuda.is_available():
         audio_windowed = audio_windowed.cuda()
 
@@ -373,14 +373,15 @@ def predict_from_signal(
     # from get_audio_input
     original_length = signal.shape[0]
     # TODO signal gets converted to numpy and back to tensor
+    signal = signal.detach().to(device="cpu", dtype=torch.float32).numpy()
     signal = np.concatenate(
-        [np.zeros((int(overlap_len / 2),), dtype=np.float32), signal.detach().cpu()]
+        [np.zeros((int(overlap_len / 2),), dtype=np.float32), signal]
     )
     audio_windowed, _ = window_audio_file(signal, hop_size)
 
     # from run_inference
     device = next(model.parameters()).device
-    audio_windowed = torch.from_numpy(audio_windowed).T.to(device)
+    audio_windowed = torch.tensor(audio_windowed, device=device).T
     output = model(audio_windowed)
     unwrapped_output = {
         k: unwrap_output(output[k], original_length, n_overlapping_frames)
