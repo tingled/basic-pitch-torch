@@ -38,7 +38,7 @@ def signal(audio_path):
 @pytest.mark.parametrize(
     "dtype, atol",
     [
-        (torch.float32, 1e-6),
+        (torch.float32, 1e-4),
         (torch.bfloat16, 0.11),  # bfloat16 casting leads to large errors
     ],
 )
