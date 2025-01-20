@@ -53,10 +53,7 @@ def test_predict_from_signal(audio_path, signal, signal_dims, device, dtype, ato
     # check that predict_from_signal returns same results as predict
     model_output, _, _ = predict(audio_path)
 
-    model = load_basic_pitch_model()
-    if torch.cuda.is_available():
-        model = model.cuda()
-
+    model = load_basic_pitch_model().to(device)
     model_output2 = predict_from_signal(signal, model)
 
     assert set(model_output.keys()) == set(model_output2.keys())
