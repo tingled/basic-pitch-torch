@@ -342,3 +342,50 @@ def predict(
             )
 
     return model_output, midi_data, note_events
+
+
+def load_basic_pitch_model(
+    model_path: Union[pathlib.Path, str] = "assets/basic_pitch_pytorch_icassp_2022.pth",
+) -> BasicPitchTorch:
+    """Load the basic pitch model from a file.
+
+    Args:
+        model_path: Path to the model file.
+
+    Returns:
+        The loaded model.
+    """
+    model = BasicPitchTorch()
+    model.load_state_dict(torch.load(str(model_path)))
+    model.eval()
+    return model
+
+
+def predict_from_signal(
+    signal: Tensor | np.ndarray,
+    model: nn.Module,
+):
+    # from run_inference
+    n_overlapping_frames = 30
+    overlap_len = n_overlapping_frames * FFT_HOP
+    hop_size = AUDIO_N_SAMPLES - overlap_len
+
+    # from get_audio_input
+    original_length = signal.shape[0]
+    # TODO signal gets converted to numpy and back to tensor
+    signal = np.concatenate(
+        [np.zeros((int(overlap_len / 2),), dtype=np.float32), signal]
+    )
+    audio_windowed, _ = window_audio_file(signal, hop_size)
+
+    # from run_inference
+    device = next(model.parameters()).device
+    audio_windowed = torch.from_numpy(audio_windowed).T.to(device)
+    output = model(audio_windowed)
+    unwrapped_output = {
+        k: unwrap_output(output[k], original_length, n_overlapping_frames)
+        for k in output
+    }
+
+    # for now we only return model output, not converting to PrettyMIDI
+    return unwrapped_output
