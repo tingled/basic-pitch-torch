@@ -374,7 +374,7 @@ def predict_from_signal(
     original_length = signal.shape[0]
     # TODO signal gets converted to numpy and back to tensor
     signal = np.concatenate(
-        [np.zeros((int(overlap_len / 2),), dtype=np.float32), signal]
+        [np.zeros((int(overlap_len / 2),), dtype=np.float32), signal.detach().cpu()]
     )
     audio_windowed, _ = window_audio_file(signal, hop_size)
 

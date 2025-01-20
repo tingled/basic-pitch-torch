@@ -22,13 +22,27 @@ def signal(audio_path):
     return torch.from_numpy(sig)
 
 
-def test_predict_from_signal(audio_path, signal):
+@pytest.mark.parametrize(
+    "device",
+    [
+        "cpu",
+        pytest.param(
+            "cuda",
+            marks=pytest.mark.skipif(
+                not torch.cuda.is_available(), reason="No CUDA device"
+            ),
+        ),
+    ],
+)
+def test_predict_from_signal(audio_path, signal, device):
     # check that predict_from_signal returns same results as predict
     model_output, _, _ = predict(audio_path)
 
     model = load_basic_pitch_model()
     if torch.cuda.is_available():
         model = model.cuda()
+
+    signal = signal.to(device)
 
     model_output2 = predict_from_signal(signal, model)
 
