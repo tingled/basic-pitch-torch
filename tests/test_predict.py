@@ -34,7 +34,17 @@ def signal(audio_path):
         ),
     ],
 )
-def test_predict_from_signal(audio_path, signal, device):
+@pytest.mark.parametrize(
+    "dtype, atol",
+    [
+        (torch.float32, 1e-6),
+        (torch.bfloat16, 0.11),  # bfloat16 casting leads to large errors
+    ],
+)
+def test_predict_from_signal(audio_path, signal, device, dtype, atol):
+    # prepare signal for testing
+    signal = signal.to(device=device, dtype=dtype)
+
     # check that predict_from_signal returns same results as predict
     model_output, _, _ = predict(audio_path)
 
@@ -42,10 +52,8 @@ def test_predict_from_signal(audio_path, signal, device):
     if torch.cuda.is_available():
         model = model.cuda()
 
-    signal = signal.to(device)
-
     model_output2 = predict_from_signal(signal, model)
 
     assert set(model_output.keys()) == set(model_output2.keys())
     for key in model_output:
-        assert np.allclose(model_output[key], model_output2[key])
+        assert np.allclose(model_output[key], model_output2[key], atol=atol)
