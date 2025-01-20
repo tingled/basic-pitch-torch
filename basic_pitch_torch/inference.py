@@ -374,8 +374,14 @@ def predict_from_signal(
     overlap_len = n_overlapping_frames * FFT_HOP
     hop_size = AUDIO_N_SAMPLES - overlap_len
 
+    # squish to 1d
+    while signal.ndim > 1:
+        assert signal.shape[0] == 1, "attempting to squeeze non-empty dim"
+        signal.squeeze_(0)
+
     # from get_audio_input
     original_length = signal.shape[0]
+
     # TODO signal gets converted to numpy and back to tensor
     signal = signal.detach().to(device="cpu", dtype=torch.float32).numpy()
     signal = np.concatenate(

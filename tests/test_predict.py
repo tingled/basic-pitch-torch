@@ -34,6 +34,7 @@ def signal(audio_path):
         ),
     ],
 )
+@pytest.mark.parametrize("signal_dims", [1, 2, 3])
 @pytest.mark.parametrize(
     "dtype, atol",
     [
@@ -41,9 +42,13 @@ def signal(audio_path):
         (torch.bfloat16, 0.11),  # bfloat16 casting leads to large errors
     ],
 )
-def test_predict_from_signal(audio_path, signal, device, dtype, atol):
+def test_predict_from_signal(audio_path, signal, signal_dims, device, dtype, atol):
     # prepare signal for testing
     signal = signal.to(device=device, dtype=dtype)
+
+    assert signal.ndim == 1
+    while signal.ndim < signal_dims:
+        signal = signal.unsqueeze(0)
 
     # check that predict_from_signal returns same results as predict
     model_output, _, _ = predict(audio_path)
