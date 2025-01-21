@@ -400,3 +400,30 @@ def predict_from_signal(
 
     # for now we only return model output, not converting to PrettyMIDI
     return unwrapped_output
+
+
+def midi_from_model_output(
+    model_output: Dict[str, np.array],
+    onset_threshold: float = 0.5,
+    frame_threshold: float = 0.3,
+    minimum_note_length: float = 127.70,
+    minimum_frequency: Optional[float] = None,
+    maximum_frequency: Optional[float] = None,
+    multiple_pitch_bends: bool = False,
+    melodia_trick: bool = True,
+    midi_tempo: float = 120,
+):
+    min_note_len = int(
+        np.round(minimum_note_length / 1000 * (AUDIO_SAMPLE_RATE / FFT_HOP))
+    )
+    return infer.model_output_to_notes(
+        model_output,
+        onset_thresh=onset_threshold,
+        frame_thresh=frame_threshold,
+        min_note_len=min_note_len,
+        min_freq=minimum_frequency,
+        max_freq=maximum_frequency,
+        multiple_pitch_bends=multiple_pitch_bends,
+        melodia_trick=melodia_trick,
+        midi_tempo=midi_tempo,
+    )
