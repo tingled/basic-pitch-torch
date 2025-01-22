@@ -53,7 +53,28 @@ def frame_with_pad(x: np.array, frame_length: int, hop_size: int) -> np.array:
     return framed_audio
 
 
-def window_audio_file(audio_original: np.array, hop_size: int) -> Tuple[np.array, List[Dict[str, int]]]:
+def frame_with_pad_torch(
+    x: torch.Tensor,
+    frame_length: int,
+    hop_size: int,
+) -> torch.Tensor:
+    # torch replacement for librosa.util.frame
+    seq_len = x.shape[-1]
+    n_frames = int(np.ceil((seq_len - frame_length) / hop_size)) + 1  # not sure what the +1 is for?
+    n_pads = (n_frames - 1) * hop_size + frame_length - seq_len
+    x = nn.functional.pad(x, (0, n_pads), mode="constant", value=0)
+    x = x.unfold(
+        dimension=-1,
+        size=frame_length,
+        step=hop_size,
+    )
+    return x.T
+
+
+def window_audio_file(
+    audio_original: Union[np.array, torch.Tensor],
+    hop_size: int,
+) -> Tuple[Union[np.array, torch.Tensor], List[Dict[str, int]]]:
     """
     Pad appropriately an audio file, and return as
     windowed signal, with window length = AUDIO_N_SAMPLES
@@ -64,7 +85,11 @@ def window_audio_file(audio_original: np.array, hop_size: int) -> Tuple[np.array
         window_times: list of {'start':.., 'end':...} objects (times in seconds)
 
     """
-    audio_windowed = frame_with_pad(audio_original, AUDIO_N_SAMPLES, hop_size)
+    if isinstance(audio_original, torch.Tensor):
+        audio_windowed = frame_with_pad_torch(audio_original, AUDIO_N_SAMPLES, hop_size)
+    else:
+        audio_windowed = frame_with_pad(audio_original, AUDIO_N_SAMPLES, hop_size)
+
     window_times = [
         {
             "start": t_start,
@@ -111,7 +136,7 @@ def unwrap_output(output: Tensor, audio_original_length: int, n_overlapping_fram
     Returns:
         array (n_times, n_freqs)
     """
-    raw_output = output.detach().to(device="cpu", dtype=torch.float32).numpy()
+    raw_output = output
     if len(raw_output.shape) != 3:
         return None
 
@@ -306,6 +331,12 @@ def predict(
     print(f"Predicting MIDI for {audio_path}...")
 
     model_output = run_inference(audio_path, model, debug_file)
+    # move torch -> numpy casting  here so downstream
+    # methods can be more agnostic
+    model_output = {
+        k: v.detach().cpu().numpy()
+        for k, v in model_output.items()
+    }
     min_note_len = int(np.round(minimum_note_length / 1000 * (AUDIO_SAMPLE_RATE / FFT_HOP)))
     midi_data, note_events = infer.model_output_to_notes(
         model_output,
@@ -383,15 +414,24 @@ def predict_from_signal(
     original_length = signal.shape[0]
 
     # TODO signal gets converted to numpy and back to tensor
-    signal = signal.detach().to(device="cpu", dtype=torch.float32).numpy()
-    signal = np.concatenate(
-        [np.zeros((int(overlap_len / 2),), dtype=np.float32), signal]
+    #  signal = signal.detach().to(device="cpu", dtype=torch.float32).numpy()
+    signal = torch.concatenate(
+        [
+            torch.zeros(
+                (int(overlap_len / 2),),
+                dtype=signal.dtype,
+                device=signal.device,
+            ),
+            signal,
+        ],
     )
     audio_windowed, _ = window_audio_file(signal, hop_size)
 
     # from run_inference
-    device = next(model.parameters()).device
-    audio_windowed = torch.tensor(audio_windowed, device=device).T
+    if isinstance(audio_windowed, np.ndarray):
+        device = next(model.parameters()).device
+        audio_windowed = torch.tensor(audio_windowed, device=device)
+    audio_windowed = audio_windowed.T
     output = model(audio_windowed)
     unwrapped_output = {
         k: unwrap_output(output[k], original_length, n_overlapping_frames)
@@ -413,6 +453,8 @@ def midi_from_model_output(
     melodia_trick: bool = True,
     midi_tempo: float = 120,
 ):
+    # note (dt): this still expects all model output matrices
+    # to be numpy, not torch
     min_note_len = int(
         np.round(minimum_note_length / 1000 * (AUDIO_SAMPLE_RATE / FFT_HOP))
     )

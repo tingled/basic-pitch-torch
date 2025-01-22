@@ -6,6 +6,8 @@ import librosa
 from basic_pitch_torch.constants import AUDIO_SAMPLE_RATE
 from basic_pitch_torch.inference import (
     load_basic_pitch_model,
+    frame_with_pad,
+    frame_with_pad_torch,
     predict,
     predict_from_signal,
     midi_from_model_output,
@@ -40,7 +42,8 @@ def signal(audio_path):
     "dtype, atol",
     [
         (torch.float32, 1e-4),
-        (torch.bfloat16, 0.11),  # bfloat16 casting leads to large errors
+        # warning! casting to bfloat16 leads to *large* errors
+        (torch.bfloat16, 0.2),
     ],
 )
 def test_predict_from_signal(audio_path, signal, signal_dims, device, dtype, atol):
@@ -54,12 +57,16 @@ def test_predict_from_signal(audio_path, signal, signal_dims, device, dtype, ato
     # check that predict_from_signal returns same results as predict
     model_output, _, _ = predict(audio_path)
 
-    model = load_basic_pitch_model().to(device)
+    model = load_basic_pitch_model().to(device=device, dtype=dtype)
     model_output2 = predict_from_signal(signal, model)
 
     assert set(model_output.keys()) == set(model_output2.keys())
     for key in model_output:
-        assert np.allclose(model_output[key], model_output2[key], atol=atol)
+        assert np.allclose(
+            model_output[key],
+            model_output2[key].detach().cpu().float().numpy(),
+            atol=atol,
+        )
 
 
 def test_midi_from_model_output(audio_path):
@@ -86,3 +93,13 @@ def test_midi_from_model_output(audio_path):
 
     # check note events
     assert len(got_note_events) == len(exp_note_events)
+
+
+def test_with_pad_torch(signal):
+    dur = 5
+    signal = signal[: dur * AUDIO_SAMPLE_RATE]
+    hop_size = 512
+    frame_length = 2048
+    exp = frame_with_pad(signal.numpy(), frame_length, hop_size)
+    got = frame_with_pad_torch(signal, frame_length, hop_size)
+    assert np.allclose(exp, got.numpy())

@@ -77,7 +77,7 @@ def get_cqt(
         bins_per_octave=12 * CONTOURS_BINS_PER_SEMITONE,
         verbose=False,
     )
-    cqt_layer.to(inputs.device)
+    cqt_layer.to(inputs.device, dtype=inputs.dtype)
     x = cqt_layer(inputs)
     x = torch.transpose(x, 1, 2)
     x = normalized_log(x)
