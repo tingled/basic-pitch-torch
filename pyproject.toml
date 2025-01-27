@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "basic-pitch-torch"
-version = "0.1.6"
+version = "0.1.7"
 description = ""
 authors = ["Your Name <you@example.com>"]
 readme = "README.md"
@@ -15,6 +15,10 @@ scipy = "^1.11.3"
 pretty_midi = "^0.2.10"
 llvmlite = "0.43.0"
 
+
+[tool.poetry.group.dev.dependencies]
+flake8 = "^7.1.1"
+isort = "^5.13.2"
 
 [build-system]
 requires = ["poetry-core"]
